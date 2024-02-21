@@ -1,20 +1,56 @@
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
 metadata:
-  name: guestbook-ui
+  name: example-rollout
 spec:
-  replicas: 3
-  revisionHistoryLimit: 3
+  replicas: 5
+  strategy:
+    canary: #Indicates that the rollout should use the Canary strategy
+      trafficRouting:
+        istio:
+          virtualService:
+            name: rollout-vsvc
+            routes:
+            - primary
+          destinationRule:
+            name: rollout-destrule
+            canarySubsetName: canary
+            stableSubsetName: stable  
+      steps:
+      - setWeight: 5
+      - pause:
+          duration: 10s # 10 sec
+      - setWeight: 20
+      - pause:
+          duration: 10s # 10 sec
+      - setWeight: 40
+      - pause:
+          duration: 10s # 10 sec
+      - setWeight: 60
+      - pause:
+          duration: 10s # 10 sec
+      - setWeight: 80
+      - pause:
+          duration: 10s # 10 sec
+
+  revisionHistoryLimit:2
   selector:
     matchLabels:
-      app: guestbook-ui
+      app: nginx
   template:
     metadata:
       labels:
-        app: guestbook-ui
+        app: nginx
     spec:
       containers:
-      - image: gcr.io/heptio-images/ks-guestbook-demo:0.2
-        name: guestbook-ui
+      - name: nginx
+        image: nginx:1.15.4
         ports:
+        - name: http
         - containerPort: 80
+          protocal: TCP
+        resources:
+          requests:
+            memory: 32Mi
+            cpu: 5m
+
